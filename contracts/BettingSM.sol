@@ -16,6 +16,12 @@ contract BettingSM is Ownable {
 
     string[] currencyArray;
 
+    struct Bettor {
+        address addr;
+        bool prediction;
+        uint256 betAmt;
+    }
+
     struct Bid {
 
         address creator;
@@ -26,10 +32,8 @@ contract BettingSM is Ownable {
         uint256 bidDeadline;
         uint256 balance;
         // uint256 newPrice;
-        mapping(address => bool) bettorToPrediction;
-        mapping(address => uint256) bettorToBidAmt;
-        address[] bettorsFor;
-        address[] bettorsAgainst;
+        // mapping(address => bool) bettorToPrediction;
+        mapping(address => Bettor) bettors;
 
     }
 
@@ -57,10 +61,24 @@ contract BettingSM is Ownable {
         newBid.title = _title;
         newBid.potentialPrice = _potentialPrice;
         newBid.bidDeadline = block.timestamp + duration;
-        newBid.bettorToPrediction[msg.sender] = true;
-        newBid.bettors.push(msg.sender);
+        Bettor storage newBettor = newBid.bettors[msg.sender];
+        newBettor.addr = msg.sender;
+        newBettor.prediction = true;
+        newBettor.betAmt = msg.value;
+        
+    }
 
+    function makeBid(string memory _title, bool memory _prediction) public payable {
+        require(s_bids[_title].potentialPrice > 0, "There is no such ballot");
 
+        Bid storage bid = s_bids[_title];
+        // if (bid.bettorToBidAmt == 0) {
+        //     if (_prediction == false) {
+        //         bid.bettorsAgainst.push(msg.sender);
+        //     } else {Bid storage newBid = s_bids[_title];
+        //         bid.bettorsFor.push(msg.sender);
+        //         }
+        // }
     } 
 
 
