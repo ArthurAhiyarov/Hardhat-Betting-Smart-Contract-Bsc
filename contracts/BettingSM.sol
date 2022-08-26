@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.15;
 
+pragma experimental ABIEncoderV2;
+
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
@@ -11,7 +13,7 @@ contract BettingSM is Ownable {
     AggregatorV3Interface internal priceFeed;
 
     uint256 public ownerFeeForBidCreation;
-    uint256 public bidCreatorFee; // creator gets it only if his prediction is correct
+    uint256 public bidCreatorFee; // creator gets it only if their prediction is correct
     uint256 public minDuration = 3 days;
 
     string[] currencyArray;
@@ -26,20 +28,19 @@ contract BettingSM is Ownable {
 
         address creator;
         string title;
+        BidState state;
         string currency;
         uint256 potentialPrice;
         uint256 actualPrice;
         uint256 bidDeadline;
         uint256 balance;
-        // uint256 newPrice;
-        // mapping(address => bool) bettorToPrediction;
         mapping(address => Bettor) bettors;
 
     }
 
+    enum BidState { Active, Finished}
+
     mapping(string => Bid) s_bids;
-
-
 
     constructor(uint256 memory _ownerFee) {
         ownerFee = _ownerFee;
@@ -59,6 +60,7 @@ contract BettingSM is Ownable {
 
         newBid.creator = msg.sender;
         newBid.title = _title;
+        newBid.state = BidState.Active;
         newBid.potentialPrice = _potentialPrice;
         newBid.bidDeadline = block.timestamp + duration;
         Bettor storage newBettor = newBid.bettors[msg.sender];
@@ -68,19 +70,39 @@ contract BettingSM is Ownable {
         
     }
 
-    function makeBid(string memory _title, bool memory _prediction) public payable {
-        require(s_bids[_title].potentialPrice > 0, "There is no such ballot");
+    function makeNewBet(string memory _title, bool memory _prediction) public payable {
+
+        require(s_bids[_title].potentialPrice > 0, "There is no such Bid");
 
         Bid storage bid = s_bids[_title];
-        // if (bid.bettorToBidAmt == 0) {
-        //     if (_prediction == false) {
-        //         bid.bettorsAgainst.push(msg.sender);
-        //     } else {Bid storage newBid = s_bids[_title];
-        //         bid.bettorsFor.push(msg.sender);
-        //         }
-        // }
-    } 
 
+        require(bid.state == BidState.Active, "Bid should be active");
+        require(bid.bettors[msg.sender].addr == 0x0, "You cannot rebid, you can only increase your stake");
 
+        Bettor storage newBettor = bid.bettors[msg.sender];
+        newBettor.addr = msg.sender;
+        newBettor.betAmt = msg.value;
+        newBettor.prediction = _prediction;
+        bid.balance += msg.value;
 
+    }
+
+    function increaseExisitingBet(string memory _title) public payable {
+
+        require(s_bids[_title].potentialPrice > 0, "There is no such Bid");
+        require(msg.value > 0, "Increase cannot be 0");
+
+        Bid storage bid = s_bids[_title];
+
+        require(bid.state == BidState.Active, "Bid should be active");
+
+        bid.bettors[msg.sender].betAmt += msg.value;
+
+    }
+
+    function getBidInfo(string memory _title) public view returns (Bid memory) {
+        require(s_bids[_title].potentialPrice > 0, "There is no such Bid");
+
+        return s_bids[_title];
+    }
 }
